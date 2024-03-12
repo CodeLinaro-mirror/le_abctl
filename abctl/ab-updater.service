@@ -1,0 +1,15 @@
+[Unit]
+Description=AB Status Updater Service
+
+[Service]
+Restart=no
+RemainAfterExit=yes
+ExecStart=/bin/sh -c " \
+            if [ \"$(/sbin/abctl --boot_slot)\" == \"_a\" ] || \
+               [ \"$(/sbin/abctl --boot_slot)\" == \"_b\" ] ; \
+                 then /sbin/abctl --set_success; else \
+                 /sbin/echo \"invalid boot slot\" > /dev/kmsg; exit 1; fi \
+          "
+
+[Install]
+WantedBy=sysinit.target
