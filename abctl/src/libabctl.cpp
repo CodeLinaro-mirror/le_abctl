@@ -14,6 +14,7 @@
 #include <errno.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include "abctl-ufs-bsg.h"
 
 #define XBL_AB_PRIMARY      "/dev/disk/by-partlabel/xbl_a"
 #define XBL_AB_SECONDARY    "/dev/disk/by-partlabel/xbl_b"
@@ -28,8 +29,6 @@
 //i.e: from /dev/sdaXXX get /dev/sda.
 #define PATH_TRUNCATE_LOC (sizeof("/dev/sda") - 1)
 #define LUN_NAME_START_LOC (sizeof("/dev/") - 1)
-//Size of the buffer that needs to be passed to the UFS ioctl
-#define UFS_ATTR_DATA_SIZE          32
 
 #define BOOT_LUN_A_ID 1
 #define BOOT_LUN_B_ID 2
@@ -488,11 +487,11 @@ static int get_scsi_node_from_bootdevice(const char *bootdev_path,
                      real_path);
       goto error;
    }
-   //This will give us /sys/block/sdX/device/scsi_generic
-   //which contains a file sgY whose name gives us the path
-   //to /dev/sgY which we return
+   //This will give us /dev/block/sdb/device/scsi_device
+   //which contains a file 0:0:0:Y whose name gives us the path
+   //to /dev/bsg/0:0:0:Y
    snprintf(sg_dir_path, sizeof(sg_dir_path) - 1,
-                  "/sys/block/%s/device/scsi_generic", &real_path[LUN_NAME_START_LOC]);
+                  "/sys/block/%s/device/scsi_device", &real_path[LUN_NAME_START_LOC]);
 
    scsi_dir = opendir(sg_dir_path);
    if (!scsi_dir) {
@@ -505,17 +504,17 @@ static int get_scsi_node_from_bootdevice(const char *bootdev_path,
    while((de = readdir(scsi_dir))) {
           if (de->d_name[0] == '.')
                   continue;
-          else if (!strncmp(de->d_name, "sg", 2)) {
+          else if (!strncmp(de->d_name, "0:", 2)) {
                     snprintf(sg_node_path,
                                   buf_size -1,
-                                  "/dev/%s",
+                                  "/dev/bsg/%s",
                                   de->d_name);
                     node_found = 1;
                     break;
           }
    }
    if(!node_found) {
-          fprintf(stderr,"%s: Unable to locate scsi generic node\n",
+          fprintf(stderr,"%s: Unable to locate scsi device node\n",
                          __func__);
           goto error;
    }
@@ -525,11 +524,6 @@ static int get_scsi_node_from_bootdevice(const char *bootdev_path,
 error:
    if (scsi_dir)
           closedir(scsi_dir);
-   return -1;
-}
-
-static int set_boot_lun(const char *sg_dev, uint8_t boot_lun_id)
-{
    return -1;
 }
 

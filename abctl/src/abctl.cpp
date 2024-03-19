@@ -11,8 +11,10 @@
 #include "libabctl.h"
 
 #define VERSION_STR         ("v1.1\n")
+#ifdef _ABCTL_NON_ROOT
 #define UID_SYSTEM          (1000)    /* UID for system user. */
 #define GID_DISK            (6)       /* GID for disk group.  */
+#endif
 
 typedef struct {
    const char *option_string;
@@ -134,8 +136,10 @@ int main(int argc, char *argv[])
 {
    unsigned int i;
 
+#ifdef _ABCTL_NON_ROOT
    setgid(GID_DISK);
    setuid(UID_SYSTEM);
+#endif
 
    if((argc == 1) || (argc > 4)) {
       usage();

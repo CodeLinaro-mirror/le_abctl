@@ -4,7 +4,7 @@ ACLOCAL_AMFLAGS = -I m4
 AM_CPPFLAGS  = $(GLIB_CFLAGS) -include glib.h -Dstrlcpy=g_strlcpy
 lib_LTLIBRARIES        = libabctl.la
 
-libabctl_la_SOURCES    = src/libabctl.cpp
+libabctl_la_SOURCES    = src/libabctl.cpp src/abctl-ufs-bsg.cpp
 
 libabctl_la_CPPFLAGS   = -I$(top_srcdir)/inc
 libabctl_la_CPPFLAGS  += -std=c++11 -Wall -Wno-unused-parameter
