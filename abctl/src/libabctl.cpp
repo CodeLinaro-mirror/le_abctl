@@ -33,7 +33,11 @@
 #define BOOT_LUN_A_ID 1
 #define BOOT_LUN_B_ID 2
 
+#ifdef ANDROID_CMDLINE
+#define SLOT_SUFFIX_STR      ("androidboot.slot_suffix=_")
+#else
 #define SLOT_SUFFIX_STR      ("systemd.setenv=\"SLOT_SUFFIX=_")
+#endif
 #define SLOT_SUFFIX_STRLEN   (sizeof(SLOT_SUFFIX_STR) - sizeof(char))
 
 #ifdef __USE_SIMULATION__
