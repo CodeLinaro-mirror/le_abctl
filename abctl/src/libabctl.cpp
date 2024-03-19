@@ -15,6 +15,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include "abctl-ufs-bsg.h"
+#include <iostream>
 
 #define XBL_AB_PRIMARY      "/dev/disk/by-partlabel/xbl_a"
 #define XBL_AB_SECONDARY    "/dev/disk/by-partlabel/xbl_b"
@@ -419,19 +420,17 @@ static int get_boot_dev_type()
    return boot_type;
 }
 
-/* Return dev_node of disk(LU) which holds the specific partition
- * TODO:
- *     get dev node in run-time
+/*
+ * Return dev_node of disk(LU) which holds the specific partition
  */
 static const char* get_disk_from_part(const char16_t *partition_name)
 {
-   const char* dev = NULL;
    int boot_type = get_boot_dev_type();
 
    if(TYPE_ERROR == boot_type)
       return NULL;
 
-   //emmc: all paritions are held by disk "/dev/mmcblk0"
+//emmc: all paritions are held by disk "/dev/mmcblk0"
    if(TYPE_EMMC == boot_type) {
       #ifdef __USE_SIMULATION__
          return "/dev/loop0";
@@ -441,23 +440,73 @@ static const char* get_disk_from_part(const char16_t *partition_name)
    }
 
    //ufs: different paritions may be held by different disk(LU)
-   if (!(strcmp16(partition_name, (u"system_a"))) ||
-         !(strcmp16(partition_name, (u"system_b"))))
-      dev = "/dev/sda";
-   else if (!(strcmp16(partition_name, (u"xbl_a"))) ||
-            !(strcmp16(partition_name, (u"xbl_config_a"))))
-      dev = "/dev/sdb";
-   else if (!(strcmp16(partition_name, (u"xbl_b"))) ||
-            !(strcmp16(partition_name, (u"xbl_config_b"))))
-      dev = "/dev/sdc";
-   else
-      dev = "/dev/sde";
+   char partition[PATH_MAX] = {0};
+   char partition_path[PATH_MAX] = {0};
+   char relative_path[PATH_MAX] = {0};
+   char sys_path[PATH_MAX] = {0};
+   char relative_sys_path[PATH_MAX] = {0};
+   static char disk_path[PATH_MAX] = {0};
+   char *device_name = nullptr;
+   char *disk_name = nullptr;
+   mbstate_t state{};
 
-   return dev;
+   // Convert const char16_t* to char[]
+   size_t sz = std::char_traits<char16_t>::length(partition_name);
+   char *p = partition;
+   for(size_t n = 0; n < sz; ++n) {
+       int rc = c16rtomb(p, partition_name[n], &state);
+       if(rc == -1) {
+         printf("Failed to convert 16-bit character to multibyte sequence.");
+         return NULL;
+       }
+       p += rc;
+   }
+
+   // Get partition path. (e.g. /dev/disk/by-partlabel/xbl_a)
+   snprintf(partition_path, sizeof(partition_path), "/dev/disk/by-partlabel/%s", partition);
+   // Get relative path. (e.g. ../../sdb1)
+   if (readlink(partition_path, relative_path, PATH_MAX - 1) < 0) {
+      fprintf(stderr, "%s : Failed to resolve link for %s: %s\n", __func__, partition_path, strerror(errno));
+      return NULL;
+   }
+   // Get device name. (e.g. sdb1)
+   device_name = strrchr(relative_path, '/');
+   if (!device_name) {
+      fprintf(stderr, "%s : Get device name for partition %s error\n", __func__, partition_path);
+      return NULL;
+   }
+   device_name++;
+
+   // Get sys path (e.g. /sys/class/block/sdb1)
+   snprintf(sys_path, sizeof(sys_path), "/sys/class/block/%s", device_name);
+   // Get relative sys path (e.g. ../../devices/platform/soc/1d84000.ufshc/host0/target0:0:0/0:0:0:1/block/sdb/sdb1)
+   if (readlink(sys_path, relative_sys_path, PATH_MAX - 1) < 0) {
+      fprintf(stderr, "%s: Failed to resolve link for %s: %s\n", __func__, sys_path, strerror(errno));
+      return NULL;
+   }
+   // Get relative sys parent path(e.g. ../../devices/platform/soc/1d84000.ufshc/host0/target0:0:0/0:0:0:1/block/sdb)
+   disk_name = strrchr(relative_sys_path, '/');
+   if (!disk_name) {
+      fprintf(stderr, "%s : Get relative sys partent path for partition %s error\n", __func__, partition_path);
+      return NULL;
+   }
+   *disk_name = '\0';
+   // Get disk name (e.g. sdb)
+   disk_name = strrchr(relative_sys_path, '/');
+   if (!disk_name) {
+      fprintf(stderr, "%s : Get disk name for partition %s error \n", __func__, partition_path);
+      return NULL;
+   }
+   disk_name++;
+   // Get disk path: /dev/sdb
+   snprintf(disk_path, sizeof(disk_path), "/dev/%s", disk_name);
+   printf("get_disk_from_part(partition:%s) return %s\n", partition, disk_path);
+   return disk_path;
 }
 
+
 /* Get scsi_node(/dev/sgX) according to
- * boot-LUN node(/dev/block/bootdevice/by-name/xbl_X)
+ * boot-LUN node(/dev/disk/by-partlabel/xbl_X)
  */
 static int get_scsi_node_from_bootdevice(const char *bootdev_path,
                 char *sg_node_path,
