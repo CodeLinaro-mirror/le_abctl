@@ -1167,3 +1167,38 @@ void libabctl_debugPrints(int do_prints)
 {
    libgpt_dbg_prints(do_prints);
 }
+
+int libabctl_getUnbootableStatus(unsigned int slot)
+{
+   int ret = -1;
+   gpt_partition_entry_t e;
+   const char16_t* boot_partition = NULL;
+
+   switch (slot) {
+   case 0:
+      boot_partition = u"boot_a";
+      break;
+
+   case 1:
+      boot_partition = u"boot_b";
+      break;
+
+   case 2:
+      boot_partition = u"boot_c";
+      break;
+
+   default:
+      return -1;
+   }
+   const char *disk_node = get_disk_from_part(boot_partition);
+   if(NULL == disk_node)
+      goto out;
+   ret = libgpt_getPartitionEntry(disk_node, boot_partition, &e);
+   if(ret == -1) {
+      perror("libabctl_getUnbootableStatus: ");
+      goto out;
+   }
+   ret = (e.attribute_flags & PARTITION_ATTRIBUTE_UNBOOTABLE_VAL) ? 1 : 0;
+out:
+   return ret;
+}
