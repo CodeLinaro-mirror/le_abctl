@@ -857,6 +857,14 @@ out:
    return ret;
 }
 
+/*  1. For legacy non-atomic A/B
+    a. Update the attr flag (active/sucessful/unbootable) for boot partition only.
+    b. Swap the GUID of the partitions.
+    c. Set UFS flag for XBL.
+
+2. For atomic A/B
+    a. Update the attr flag (active/sucessful/unbootable) for boot partition only.
+    b. Set UFS flag for XBL. */
 int libabctl_setActive(unsigned int slot)
 {
    int ret = -1;
@@ -907,6 +915,70 @@ int libabctl_setActive(unsigned int slot)
          goto out;
    }
 
+/* Update attribute only for boot partition */
+   /*Iterate through all the partitons that are impacted by AB*/
+   for( iter = 0; iter < sizeof(part_guid_map)/sizeof(partition_guid_map_t); iter++) {
+      /* skip xbl_x & xbl_config_x which are inside UFS boot partition. */
+      if (boot_type == TYPE_UFS &&
+        ! (strcmp16(part_guid_map[iter].partition_name_prefix,
+                          u"xbl_"))) {
+          xbl_in_use = 1;
+          continue;
+      }
+
+	if (boot_type == TYPE_UFS &&
+       ! (strcmp16(part_guid_map[iter].partition_name_prefix, BOOT_PREFIX))) {
+         /*Update for active boot partitions*/
+         /*Copy the boot partition name prefix, and concat the active-suffix
+		   to get complete boot partition name*/
+         memset(active_partition, 0, GPT_NAME_MAX);
+         memcpy(active_partition, BOOT_PREFIX, sizeof(BOOT_PREFIX));
+         active_partition[STRLEN_CHAR16(BOOT_PREFIX)] = active_slot_suffix;
+         disk_node = get_disk_from_part(active_partition);
+         ret = libgpt_getPartitionEntry(disk_node, active_partition, &e);
+         if(ret == -1) {
+            fprintf(stderr,"%s: failed to get active part-entry for BOOT %s\n",
+                        __func__, disk_node);
+            goto out;
+         }
+
+         e.attribute_flags |= (PARTITION_ATTRIBUTE_ACTIVE_VAL |
+                        PARTITION_ATTRIBUTE_PRIORITY_VAL_MAX |
+                        PARTITION_ATTRIBUTE_MAX_RETRY_COUNT_VAL);
+         e.attribute_flags &= PARTITION_ATTRIBUTE_SUCCESSFUL_CLR;
+         e.attribute_flags &= PARTITION_ATTRIBUTE_UNBOOTABLE_CLR;
+         ret = libgpt_setAttribute(disk_node, active_partition, e.attribute_flags);
+
+
+         /*Update for non-active boot partitions:*/
+         int boot_slot = libabctl_getBootSlot();
+         for (int idx = 0; non_active_slot_suffix[idx]; idx++) {
+            /*Copy the boot partition name prefix and concat the non-active-suffix
+            to get complete boot partition name.*/
+            memset(non_active_partition, 0, GPT_NAME_MAX);
+            memcpy(non_active_partition, BOOT_PREFIX, sizeof(BOOT_PREFIX));
+            non_active_partition[STRLEN_CHAR16(BOOT_PREFIX)] = non_active_slot_suffix[idx];
+            disk_node = get_disk_from_part(non_active_partition);
+            ret = libgpt_getPartitionEntry(disk_node, non_active_partition, &e);
+            if(ret == -1) {
+               fprintf(stderr,"%s: failed to get non-active part-entry for BOOT %s\n",
+                     __func__, disk_node);
+               goto out;
+            }
+            e.attribute_flags &= PARTITION_ATTRIBUTE_PRIORITY_CLR;
+            if (boot_slot != -1 && (('a' + boot_slot) == non_active_slot_suffix[idx]))
+               e.attribute_flags
+                  |= ((uint64_t)(0x2) << PARTITION_ATTRIBUTE_PRIORITY_BIT_POS);
+            else
+               e.attribute_flags |= PARTITION_ATTRIBUTE_PRIORITY_VAL_MIN;
+            ret = libgpt_setAttribute(disk_node, non_active_partition, e.attribute_flags);
+         }
+      }
+   }
+
+#ifndef SUPPORT_ENABLE_LV_ATOMIC_AB
+   printf("%s: default LV ATOMIC A/B. But now we use legacy A/B.\n", __func__);
+   /* set guid for each partitions */
    /*Iterate through all the partitons that are impacted by AB*/
    for( iter = 0; iter < sizeof(part_guid_map)/sizeof(partition_guid_map_t);
         iter++) {
@@ -918,11 +990,10 @@ int libabctl_setActive(unsigned int slot)
           continue;
       }
 
-      /*Copy the partition name prefix.*/
+      /*Update guid for active partitions:*/
       memset(active_partition, 0, GPT_NAME_MAX);
       memcpy(active_partition, part_guid_map[iter].partition_name_prefix,
                                part_guid_map[iter].prefix_len * sizeof(char16_t));
-      /*concat the active-suffix to get complete partition name*/
       active_partition[part_guid_map[iter].prefix_len] = active_slot_suffix;
 
       disk_node = get_disk_from_part(active_partition);
@@ -939,14 +1010,6 @@ int libabctl_setActive(unsigned int slot)
          goto out;
       }
 
-      e.attribute_flags |= (PARTITION_ATTRIBUTE_ACTIVE_VAL |
-                            PARTITION_ATTRIBUTE_PRIORITY_VAL_MAX |
-                            PARTITION_ATTRIBUTE_MAX_RETRY_COUNT_VAL);
-      e.attribute_flags &= PARTITION_ATTRIBUTE_SUCCESSFUL_CLR;
-      e.attribute_flags &= PARTITION_ATTRIBUTE_UNBOOTABLE_CLR;
-      ret = libgpt_setAttribute(disk_node, active_partition,
-                                                e.attribute_flags);
-
       if(part_guid_map[iter].uses_part_type_guid) {
          ret = libgpt_setTypeGUID(disk_node, active_partition,
                                   part_guid_map[iter].active_slot_guid);
@@ -957,15 +1020,14 @@ int libabctl_setActive(unsigned int slot)
          goto out;
       }
 
+      /*Update guid for non-active partitions:*/
       int boot_slot = libabctl_getBootSlot();
 
       for (int idx = 0; non_active_slot_suffix[idx]; idx++) {
          /*Update for non-active partitions*/
-         /*Copy the partition name prefix.*/
          memset(non_active_partition, 0, sizeof(non_active_partition));
          memcpy(non_active_partition, part_guid_map[iter].partition_name_prefix,
                                       part_guid_map[iter].prefix_len * sizeof(char16_t));
-         /*concat the non-active-suffix to get complete partition name*/
          non_active_partition[part_guid_map[iter].prefix_len] = non_active_slot_suffix[idx];
 
          disk_node = get_disk_from_part(non_active_partition);
@@ -977,14 +1039,6 @@ int libabctl_setActive(unsigned int slot)
             goto out;
          }
 
-         e.attribute_flags &= PARTITION_ATTRIBUTE_PRIORITY_CLR;
-         if (boot_slot != -1 && (('a' + boot_slot) == non_active_slot_suffix[idx]))
-            e.attribute_flags
-               |= ((uint64_t)(0x2) << PARTITION_ATTRIBUTE_PRIORITY_BIT_POS);
-         else
-            e.attribute_flags |= PARTITION_ATTRIBUTE_PRIORITY_VAL_MIN;
-         ret = libgpt_setAttribute(disk_node, non_active_partition, e.attribute_flags);
-
          if(part_guid_map[iter].uses_part_type_guid) {
             ret = libgpt_setTypeGUID(disk_node, non_active_partition,
                                      part_guid_map[iter].dormant_slot_guid);
@@ -995,6 +1049,7 @@ int libabctl_setActive(unsigned int slot)
          }
       }
    }
+#endif
 
    if(TYPE_UFS == boot_type) {
       if(xbl_in_use)
