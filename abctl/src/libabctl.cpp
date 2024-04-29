@@ -645,12 +645,13 @@ static int get_total_slots () {
    int total_slots = 0;
    const char16_t* boot_partition[] = {u"boot_a", u"boot_b", u"boot_c", NULL};
    gpt_partition_entry_t e;
-   const char *disk_node = get_disk_from_part(boot_partition[0]);
+   const char *disk_node = NULL;
 
    if (g_total_slots != -1)
       return g_total_slots;
 
    for (int i = 0; boot_partition[i] != 0; i++) {
+      disk_node = get_disk_from_part(boot_partition[i]);
       int ret = libgpt_getPartitionEntry(disk_node, boot_partition[i], &e);
       if(ret == -1) {
          fprintf(stderr, "%s: failed to get part-entry for %s\n",
