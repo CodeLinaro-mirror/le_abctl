@@ -59,8 +59,6 @@ static int _dbg_prints = 0;
 #endif
 
 #define GPT_HEADER_SIGNATURE    (0x5452415020494645ULL)
-#define KERNEL_CMDLINE       ("/proc/cmdline")
-#define CMDLINE_LEN          (2048)
 
 static int strcmp16(const char16_t *s1, const char16_t *s2)
 {
@@ -670,6 +668,28 @@ int libgpt_setTypeGUID(const char* device, const char16_t* partition_name,
    DBG_ERR("libgpt: %s: both GPT updated\n", __func__);
 
    return 0;
+}
+
+int libgpt_getTypeGUID(const char* device, const char16_t* partition_name,
+                                           guid_t* type_guid)
+{
+   int ret = -1;
+   gpt_partition_entry_t entry;
+
+   if (type_guid == NULL) {
+      errno = EINVAL;
+      return -1;
+   }
+
+   ret = libgpt_getPartitionEntry(device, partition_name, &entry);
+
+   if(ret >= 0) {
+      memcpy(type_guid, &entry.partition_type_guid, sizeof(guid_t));
+   } else {
+      ret = -1;
+   }
+
+   return ret;
 }
 
 void libgpt_dbg_prints(int do_prints)

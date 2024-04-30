@@ -128,5 +128,22 @@ int libgpt_setAttribute(const char* device, const char16_t* partition_name,
 int libgpt_setTypeGUID(const char* device, const char16_t* partition_name,
                                            guid_t *type_guid);
 
+/*
+ * libgpt_getTypeGUID gets the type GUID for the indicated partition.
+ *
+ * Parameters
+ *    device [IN]:         Block device where the partition should be searched.
+ *    partition_name [IN]: Partition for ehich attribute is to be updated.
+ *    type_guid[IN/OUT]:   Must be alocated by Caller.
+ *                         GUID is copied in this.
+ *
+ * Return Value
+ *    -1 when an error is encountered, errno is set accordingly.
+ *    On success 'index' of the parttion entry in partition array is returned
+ *    and type_guid is filled.
+ *
+ */
+int libgpt_getTypeGUID(const char* device, const char16_t* partition_name,
+                                           guid_t *type_guid);
 void libgpt_dbg_prints(int do_prints);
 #endif //_LIBGPT_H_
