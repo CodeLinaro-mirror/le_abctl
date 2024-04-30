@@ -69,6 +69,14 @@ int libabctl_setPriority(unsigned int slot, unsigned int priority);
  */
 int libabctl_setUnbootable(unsigned int slot);
 
+/*
+ * libabctl_getUnbootableStatus() gets Unbootable status for the slot specified.
+ *  Return values should be interpreted as follows:
+ *    0: The Unbootable flag is NOT set for given slot.
+ *    1: The Unbootable flag is set for given slot.
+ *   -1: If system does not support A/B, or in case of any error.
+ */
+int libabctl_getUnbootableStatus(unsigned int slot);
 
 void libabctl_debugPrints(int do_prints);
 #endif //_LIBABCTL_H_
