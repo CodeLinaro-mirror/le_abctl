@@ -1,5 +1,9 @@
-// Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
-// SPDX-License-Identifier: BSD-3-Clause-Clear
+/*
+ * ---------------------------------------------------------------------------
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ * ---------------------------------------------------------------------------
+ */
 
 #ifndef _LIBGPT_H_
 #define _LIBGPT_H_
@@ -145,5 +149,6 @@ int libgpt_setTypeGUID(const char* device, const char16_t* partition_name,
  */
 int libgpt_getTypeGUID(const char* device, const char16_t* partition_name,
                                            guid_t *type_guid);
+
 void libgpt_dbg_prints(int do_prints);
 #endif //_LIBGPT_H_

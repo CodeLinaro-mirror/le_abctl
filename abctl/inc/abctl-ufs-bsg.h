@@ -1,4 +1,5 @@
 /*
+ * ---------------------------------------------------------------------------
 Copyright (c) 2020, The Linux Foundation. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -26,11 +27,11 @@ WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
 OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-
-Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+Changes from Qualcomm Technologies, Inc. are provided under the following license:
+Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries. 
 SPDX-License-Identifier: BSD-3-Clause-Clear
-*/
+ * ---------------------------------------------------------------------------
+ */
 
 #ifndef __ABCTL_UFS_BSG_H__
 #define __ABCTL_UFS_BSG_H__
@@ -61,6 +62,7 @@ SPDX-License-Identifier: BSD-3-Clause-Clear
 
 int32_t set_boot_lun(char *sg_dev, uint8_t lun_id);
 
+#ifdef _BSG_FRAMEWORK_KERNEL_HEADERS
 /* UPIU Transaction Codes */
 enum {
     UTP_UPIU_NOP_OUT    = 0x00,
@@ -110,5 +112,6 @@ enum query_attr_idn {
     QUERY_ATTR_IDN_POWER_MODE        = 0x02,
     QUERY_ATTR_IDN_ACTIVE_ICC_LVL    = 0x03,
 };
+#endif  /*  _BSG_FRAMEWORK_KERNEL_HEADERS */
 
 #endif /* __ABCTL_UFS_BSG_H__ */

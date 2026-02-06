@@ -1,5 +1,9 @@
-// Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
-// SPDX-License-Identifier: BSD-3-Clause-Clear
+/*
+ * ---------------------------------------------------------------------------
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ * ---------------------------------------------------------------------------
+ */
 
 #ifndef _LIBABCTL_H_
 #define _LIBABCTL_H_
@@ -53,18 +57,9 @@ int libabctl_getActiveStatus(unsigned int slot);
 int libabctl_setActive(unsigned int slot);
 
 /*
- * libabctl_Priority() marks priority for the slot
- * sets the priotity .
- *  Return values should be interpreted as follows:
- *    0: The Success flag was set successfully.
- *   -1: If system does not support A/B/C, or in case of any error.
- */
-int libabctl_setPriority(unsigned int slot, unsigned int priority);
-
-/*
  * libabctl_setUnbootable() marks the specified slot as unbootable.
  *  Return values should be interpreted as follows:
- *    0: The Success flag was set successfully.
+ *    0: The ubootable flag was set successfully.
  *   -1: If system does not support A/B, or in case of any error.
  */
 int libabctl_setUnbootable(unsigned int slot);

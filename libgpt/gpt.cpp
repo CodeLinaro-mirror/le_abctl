@@ -1,5 +1,9 @@
-// Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
-// SPDX-License-Identifier: BSD-3-Clause-Clear
+/*
+ * ---------------------------------------------------------------------------
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ * ---------------------------------------------------------------------------
+ */
 
 /*
  *                        GUID Partition Table
@@ -123,17 +127,6 @@ static uint32_t calculate_crc32(void *buf, uint32_t len)
     return reflected_regs;
 }
 
-/* fsync and drop caches to free dirty objects. */
-void fsyncAndDropCaches(int fd)
-{
-    int drop_caches = open("/proc/sys/vm/drop_caches", O_WRONLY | O_CLOEXEC);
-
-    fsync(fd);
-    fsync(fd);
-    write(drop_caches, "1", 1);
-    close(drop_caches);
-}
-
 /* Get the sector size(LBA size) of disk
  * return value :
  *    on success: lab_size
@@ -209,7 +202,7 @@ static int64_t get_disk_num_lbas(const char* device)
 
 static int open_block_dev(const char* device, int is_write)
 {
-    int oflag = is_write ? O_RDWR | O_SYNC : O_RDONLY | O_SYNC;
+    int oflag = is_write ? O_RDWR : O_RDONLY;
     int fd = open (device, oflag);
 
     if (-1 == fd) {
@@ -250,7 +243,7 @@ static ssize_t read_block_dev(const char* device, off64_t offset,
 }
 
 static ssize_t write_block_dev(const char* device, off64_t offset,
-                               size_t size, void *buf, bool isSync)
+                               size_t size, void *buf)
 {
     ssize_t written_bytes;
     ssize_t ret = 0;
@@ -273,9 +266,6 @@ static ssize_t write_block_dev(const char* device, off64_t offset,
     else
         ret = written_bytes;
 
-    if (isSync) {
-        fsyncAndDropCaches(fd);
-    }
     close(fd);
     return ret;
 }
@@ -358,7 +348,7 @@ static int write_gpt_part_entry(const char *device, gpt_header_id_t hdr_id,
 
    ret = write_block_dev(device, gpt_parts_entry_start_offset,
                          sizeof(gpt_partition_entry_t) * gpt_header.number_of_partitions,
-                         partition_entry_array, false);
+                         partition_entry_array);
 
    free(partition_entry_array);
 
@@ -369,7 +359,7 @@ static int write_gpt_part_entry(const char *device, gpt_header_id_t hdr_id,
    }
 
    ret = write_block_dev(device, gpt_hdr_start_offset,
-                         sizeof(gpt_hdr_t), &gpt_header, true);
+                         sizeof(gpt_hdr_t), &gpt_header);
 
    if (ret == -1) {
       DBG_ERR("libgpt: %s: GPT header write failed for GPT %d (%s)\n",
@@ -450,6 +440,8 @@ int libgpt_gptSanityCheck(const char* device, gpt_header_id_t gpt_id)
       /* signature/header_size/partition_entry_size not match */
       ret = -1;
    }
+   if (partition_entry_array)
+      free(partition_entry_array);
    return ret;
 }
 
